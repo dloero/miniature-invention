@@ -11,9 +11,9 @@ Goal: get me everything I need to run an AI voice receptionist business for Colo
 | | |
 |---|---|
 | Hands-on time | ~90 min at the keyboard, spread over 1–3 days (some steps require approval waits) |
-| Upfront cash | ~$75 (domain $12 + Colorado LLC $50 + Anthropic API deposit $10) |
-| Recurring | ~$25–30/mo until you have 3+ clients; free tiers cover most services |
-| Total against your $500 budget | You'll have ~$410 in reserve after Phase 1–2 |
+| Upfront cash | ~$90 (domain $12 + Colorado LLC $50 + Anthropic deposit $10 + Twilio 10DLC brand $4 + optional cold-email domain $12) |
+| Recurring | ~$35/mo (Twilio 10DLC campaign $10 + number $1 + LiveKit/Deepgram/Cartesia on free tier + Neon/Vercel/Fly free) |
+| Total against your $500 budget | You'll have ~$395 in reserve after Phase 1–2 |
 | Wait time you can't shortcut | LLC approval (1–3 business days), EIN (same day), Mercury bank (2–5 days, optional) |
 
 ---
@@ -27,6 +27,28 @@ Goal: get me everything I need to run an AI voice receptionist business for Colo
 5. When you're done (or done-enough, with green checkmarks on every **[REQUIRED]** item below), start a new Claude Code session in this repo and say **"creds ready, take off."**
 
 I'll read `ops/.env`, verify every service responds, build, deploy, and start prospecting.
+
+---
+
+## Phase 0 — Mac mini prereqs (10 min, one-time)
+
+Install these once. Everything downstream assumes they're present.
+
+```bash
+# Homebrew (if not installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Core tooling I'll use
+brew install git node python@3.12 pnpm flyctl gh
+
+# Claude Code (if you don't already have it here)
+brew install --cask claude-code
+
+# Verify
+git --version && node --version && python3 --version && flyctl version
+```
+
+macOS hides dotfiles in Finder. Toggle with `⌘⇧.` when you need to see `ops/.env`.
 
 ---
 
@@ -51,8 +73,9 @@ Do these in order — later steps depend on earlier ones.
 
 ### ☐ 3. Colorado LLC filing `[REQUIRED]`
 - **URL:** https://www.sos.state.co.us/biz/FileBusinessDocument.do (Articles of Organization for a Limited Liability Company)
+- **Pre-flight:** check name availability for *both* the LLC **and** domain before committing. Use https://www.sos.state.co.us/biz/BusinessEntityCriteriaExt.do. Only file once the domain you bought in Step 2 is consistent with your LLC name.
 - **Cost:** $50 exactly. Pay with your personal card.
-- **Name to file:** Ringbridge LLC (if taken, try Ringbridge AI LLC, then Ringbridge Services LLC — check availability on the same site first at https://www.sos.state.co.us/biz/BusinessEntityCriteriaExt.do)
+- **Name to file:** Ringbridge LLC (if taken, try Ringbridge AI LLC, then Ringbridge Services LLC)
 - **Principal office address:** your home address is fine for a single-member LLC in Colorado.
 - **Registered agent:** you can be your own — check "Individual" and enter your own name + address. Saves $100–200/yr vs. a service.
 - **Management:** Member-managed. Single member (you).
@@ -61,6 +84,11 @@ Do these in order — later steps depend on earlier ones.
   - `LLC_NAME=Ringbridge LLC`
   - `LLC_ID=` (the CO business ID they assign, e.g. 20261234567)
 - **Wait:** usually approved same-day online, occasionally 1–3 business days. You'll get a PDF confirmation emailed.
+- **Trade name (optional, $20):** if you want to brand as just "Ringbridge" without the LLC suffix on the website/invoices, file a **Statement of Trade Name** on the same SOS portal. Most clients won't care — skip unless it bugs you.
+- **Operating Agreement:** Colorado does not require one for single-member LLCs, but Mercury / any bank will ask for one when you open the business account. I'll generate a standard single-member template and drop it in `docs/` after handoff — no action needed from you now.
+- **What you do NOT have to do:**
+  - **FinCEN BOI (Beneficial Ownership) report** — as of March 2025, domestic LLCs are **exempt** from BOI filing. Do not pay a service that tells you otherwise.
+- **Reminder to note in your calendar:** Colorado requires a **Periodic Report** every year (~$25). Due on the anniversary of formation. Miss it and the LLC goes delinquent.
 
 ### ☐ 4. EIN (federal tax ID) `[REQUIRED]`
 - **URL:** https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online
@@ -84,14 +112,17 @@ All free-tier or pay-as-you-go. Do these back-to-back while waiting on the LLC.
 
 ### ☐ 6. Twilio `[REQUIRED]`
 - **URL:** https://www.twilio.com/try-twilio
-- **Step 1:** Create account, verify your phone, verify email.
+- **Step 1:** Create account. **Use your personal cell** for SMS verification, not a VoIP number — Twilio rejects VoIP.
 - **Step 2:** Console → Phone Numbers → Buy a number → **Colorado local area code (303, 720, 719, or 970)** → pick one with Voice + SMS enabled (~$1.15/mo).
 - **Step 3:** Console top-right → copy Account SID and Auth Token.
+- **Step 4: Trust Hub / Business Profile registration (critical, 5 min).** Console → Trust Hub → Customer Profile → submit your LLC info. Without this, your Twilio number gets flagged as "Scam Likely" on carrier caller ID. This is *the* reason most amateur voice-agent projects fail — the prospect sees "Scam Likely" and never picks up. Do it day 1. Approval is usually instant to 24h.
+- **Step 5: 10DLC SMS registration (required for client recap texts).** Messaging → Regulatory Compliance → register a **Brand** ($4 one-time) and a **Campaign** ($10/mo) under the "Mixed" or "Customer Care" use case. Takes 1–3 days. Without this, Twilio throttles your SMS to ~1 msg/sec and many carriers filter it. Once approved, create a Messaging Service and grab its SID.
 - **Paste into `ops/.env`:**
   - `TWILIO_ACCOUNT_SID=AC...`
   - `TWILIO_AUTH_TOKEN=...`
   - `TWILIO_PHONE_NUMBER=+1720XXXXXXX`
-- **Cost:** $1.15/mo + ~$0.013/min. Add $20 trial balance when they ask.
+  - `TWILIO_MESSAGING_SERVICE_SID=MG...` (after 10DLC approval, can be left blank at first)
+- **Cost:** $1.15/mo number + $4 10DLC brand (one-time) + $10/mo 10DLC campaign + ~$0.013/min voice. Add $20 trial balance when they ask.
 
 ### ☐ 7. LiveKit Cloud `[REQUIRED]`
 - **URL:** https://cloud.livekit.io/
@@ -143,10 +174,14 @@ All free-tier or pay-as-you-go. Do these back-to-back while waiting on the LLC.
 
 ### ☐ 15. Resend (transactional email) `[REQUIRED]`
 - **URL:** https://resend.com/signup
-- **Step:** Sign up → Domains → add `ringbridge.ai` → add the DNS records it gives you to your domain (Porkbun/Cloudflare → DNS → add TXT + MX records). Then API Keys → create.
+- **Step:** Sign up → Domains → add your domain → add the DNS records it gives you (SPF / DKIM / MX / DMARC) to your registrar (Porkbun/Cloudflare → DNS). Then API Keys → create.
 - **Paste into `ops/.env`:** `RESEND_API_KEY=re_...`
-- **Cost:** free tier = 3,000 emails/mo, 100/day. More than enough for month 1.
-- **Why not Gmail SMTP:** deliverability + proper domain auth. We're sending cold outreach; doing it right matters.
+- **Cost:** free tier = 3,000 emails/mo, 100/day. Plenty for month 1.
+- **⚠ Critical — protect your main domain's reputation:**
+  - **Never send cold outreach from your primary domain** (`ringbridge.ai`). One spam complaint and Google Workspace starts filtering your transactional + client email too.
+  - **Buy a second domain for cold outreach**: e.g. `tryringbridge.com` or `ringbridge-hq.com` (~$12/yr). Use it only for prospecting email.
+  - **Warm it before sending at volume.** Brand new domains that immediately send 100 cold emails get blackholed. Either (a) send ≤10 manual emails/day for 2 weeks, ramping up, or (b) use Instantly.ai / Mailreef's auto-warmup for $37/mo for 3 weeks, then cancel.
+- **Paste into `ops/.env`:** `COLD_EMAIL_DOMAIN=tryringbridge.com` (leave blank if sending from primary domain initially).
 
 ---
 
@@ -200,23 +235,40 @@ I will then:
 - Verify every API responds (1 min)
 - Build the voice agent, outreach pipeline, and landing site (autonomous)
 - Deploy voice agent to Fly.io, site to Vercel
-- Start the first 50-lead cold-outreach batch to Colorado HVAC shops
+- Start the first 50-lead cold-**email** batch to Colorado HVAC shops
 - Report MRR daily
 
 **One thing I can't do:** make you rich overnight. Realistic target is 3 clients by day 30, $891 MRR. Full P&L is in [`docs/BUSINESS.md`](../docs/BUSINESS.md) *(I'll write that when you unblock me).*
 
 ---
 
+## Legal note on outbound calling (correction from earlier plan)
+
+Earlier I suggested AI-cold-calling Colorado HVAC owners as a demo-driven outreach tactic. **I'm retracting that.** The FCC's February 2024 ruling treats AI-generated voice calls as "artificial or prerecorded" under the TCPA, which means outbound AI calls to people who haven't given prior express written consent are illegal — $500–$1,500 per call in statutory damages. Not worth the risk.
+
+Revised outbound playbook:
+1. **Cold email** (legal under CAN-SPAM with proper unsubscribe) — primary channel.
+2. **Human-initiated calls** where I feed the operator a script + live call coaching, but a human dials and speaks — legal.
+3. **Inbound demo calls**: prospects call our Twilio number from the landing page "Talk to a demo" button, and the AI answers. Fully legal (they initiated).
+4. **LinkedIn + Google Business Profile outreach** — manual, founder-led, slow but zero legal risk.
+
+This changes nothing about the business model — the *product* is an inbound AI receptionist, which is exactly the kind of AI voice call the FCC still permits without issue (caller initiates, business answers).
+
+---
+
 ## Summary card (stick this on a monitor)
 
 ```
+MAC PREREQS (once):
+[ ] Homebrew + node + python + flyctl + gh + claude-code
+
 REQUIRED accounts (15):
 [ ] Gmail personal
 [ ] Domain (Porkbun/Cloudflare)
 [ ] Colorado LLC (sos.state.co.us)
 [ ] EIN (irs.gov)
 [ ] Anthropic API
-[ ] Twilio (CO number)
+[ ] Twilio (CO number + Trust Hub + 10DLC)
 [ ] LiveKit Cloud
 [ ] Deepgram
 [ ] Cartesia
@@ -225,20 +277,21 @@ REQUIRED accounts (15):
 [ ] Fly.io (card on file)
 [ ] Vercel
 [ ] GitHub (existing)
-[ ] Resend + domain DNS
+[ ] Resend + primary domain DNS
 
-RECOMMENDED (3):
+RECOMMENDED (4):
 [ ] Google Workspace ($7/mo)
 [ ] Privacy.com virtual card ($50 cap)
 [ ] Stripe
+[ ] Second domain for cold email (~$12)
 
 DEFER:
 [ ] Mercury bank
 [ ] Apollo.io
-[ ] Instantly.ai
+[ ] Instantly.ai (only if you want auto-warmup)
 [ ] Business insurance
 
-Upfront cash:  ~$75
-Monthly:       ~$25
-Reserve:       ~$410 of your $500 budget
+Upfront cash:    ~$90  (adds $4 10DLC brand + optional $12 cold-email domain)
+Recurring:       ~$35/mo (adds $10 10DLC campaign)
+Reserve:         ~$395 of your $500 budget
 ```
