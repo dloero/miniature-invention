@@ -16,8 +16,3 @@ Guidance for Claude Code when working in this repository.
 
 - Branching: develop on feature branches; open PRs against `master`.
 - Commits: short, imperative subject lines.
-
-## Notes for Claude
-
-- Prefer editing existing files over creating new ones.
-- Keep changes scoped to the task; avoid unrelated refactors.
