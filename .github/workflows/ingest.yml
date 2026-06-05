@@ -1,0 +1,39 @@
+name: Ingest RS Q8 pricing
+
+# Pulls a fresh market snapshot from Auto.dev and commits it to
+# data/snapshots.json. Runs every 3 days (and on demand). Vercel redeploys
+# automatically on the new commit, so the app stays current with zero servers.
+on:
+  schedule:
+    - cron: "0 13 */3 * *" # every 3 days at 13:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Pull snapshot from Auto.dev
+        env:
+          AUTO_DEV_API_KEY: ${{ secrets.AUTO_DEV_API_KEY }}
+        run: node scripts/ingest.mjs
+
+      - name: Commit new snapshot
+        run: |
+          git config user.name "rsq8-bot"
+          git config user.email "actions@github.com"
+          if git diff --quiet -- data/snapshots.json; then
+            echo "No change in snapshot; nothing to commit."
+          else
+            git add data/snapshots.json
+            git commit -m "data: RS Q8 snapshot $(date -u +%Y-%m-%d)"
+            git push
+          fi
